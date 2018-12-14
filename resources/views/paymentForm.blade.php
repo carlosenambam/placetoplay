@@ -14,7 +14,7 @@
             @endforeach
         </ul>
     @endif
-    
+
     <form method="post" action="/create-transaction">
         {{ csrf_field() }}
         <p>Datos de Comprador:</p>
@@ -30,7 +30,7 @@
             <option value="PPN">Pasaporte</option>
         </select><br>
 
-        <label for="fisrt-name">Nombres*</label>
+        <label for="first-name">Nombres*</label>
         <input type="text" name="person[firstName]" id="first-name" required/><br>
 
         <label for="last-name">Apellidos*</label>
@@ -98,6 +98,8 @@
         <input type="submit" value="Pagar">
 
     </form>
+    <br><br>
+    <a href="/transaction-list">Lista de Transacciones</a>
 
 </body>
 </html>

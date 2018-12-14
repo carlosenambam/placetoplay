@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\DataStructures\DataStructuresFactory;
 use SoapClient;
+use SoapFault;
 use StdClass;
 use Madewithlove\IlluminatePsrCacheBridge\Laravel\CacheItemPool;
 use Madewithlove\IlluminatePsrCacheBridge\Laravel\CacheItem;
@@ -52,30 +53,35 @@ class PaymentController extends Controller
         $transaction = new Transaction();
         $transaction->save();
 
-        $trResponse = $soapClient->createTransaction($ds->createTransactionParams($request, $transaction->id));
-        $dataResponse = $trResponse->createTransactionResult;
+        if (!$request->input('transaction') || !$request->input('person')) {
+            return redirect('/')->withErrors(['error' => '¡Datos Incorrectos!']);
+        }
 
-        $transaction->return_code = $dataResponse->returnCode;
-        $transaction->bank_url = $dataResponse->bankURL;
-        $transaction->trazability_code = $dataResponse->trazabilityCode;
-        $transaction->transaction_cycle = $dataResponse->transactionCycle;
-        $transaction->transaction_id = $dataResponse->transactionID;
-        $transaction->session_id = $dataResponse->sessionID;
-        $transaction->bank_currency = $dataResponse->bankCurrency;
-        $transaction->bank_factor = $dataResponse->bankFactor;
-        $transaction->response_code = $dataResponse->responseCode;
-        $transaction->response_reason_code = $dataResponse->responseReasonCode;
-        $transaction->response_reason_text = $dataResponse->responseReasonText;
-        $transaction->state = 'Unknown';
-        $transaction->save();
+        try {
+            $trResponse = $soapClient->createTransaction(
+                $ds->createTransactionParams(
+                    $request->all(),
+                    $request->ip(),
+                    $request->userAgent(),
+                    $transaction->id
+                )
+            );
+            $dataResponse = $trResponse->createTransactionResult;
 
-        if ($dataResponse->returnCode === 'SUCCESS') {
-            $verifyTransactionJob = new VerifyTransactionJob($transaction->id);
-            $verifyTransactionJob->delay(60*7);
-            $this->dispatch($verifyTransactionJob);
-            return redirect($dataResponse->bankURL);
-        } else {
-            return redirect('/')->withErrors(['error' => $dataResponse->responseReasonText]);
+            $transaction->addDataFromResponse($dataResponse);
+            
+            $transaction->save();
+
+            if ($dataResponse->returnCode === 'SUCCESS') {
+                $verifyTransactionJob = new VerifyTransactionJob($transaction->id);
+                $verifyTransactionJob->delay(60*7);
+                $this->dispatch($verifyTransactionJob);
+                return redirect($dataResponse->bankURL);
+            } else {
+                return redirect('/')->withErrors(['error' => $dataResponse->responseReasonText]);
+            }
+        } catch (SoapFault $e) {
+            return redirect('/')->withErrors(['error' => $e->getMessage()]);
         }
     }
 
@@ -96,6 +102,15 @@ class PaymentController extends Controller
         
         return view('pseresponse', array(
             'tranState' => $stateText
+        ));
+    }
+
+    public function transactionList()
+    {
+        $transactions = Transaction::all();
+
+        return view('transactionList', array(
+            'transactions' => $transactions
         ));
     }
 }

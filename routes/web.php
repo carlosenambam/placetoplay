@@ -15,4 +15,6 @@ Route::get('/', 'PaymentController@paymentForm');
 
 Route::post('/create-transaction', 'PaymentController@createTransaction');
 
+Route::get('/transaction-list', 'PaymentController@transactionList');
+
 Route::get('/return-url', 'PaymentController@returnUrl');

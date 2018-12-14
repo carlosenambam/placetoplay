@@ -25,6 +25,9 @@ class VerifyTransactionJob implements ShouldQueue
     public function handle(SoapClient $soapClient, DataStructuresFactory $ds)
     {
         $transaction = Transaction::find($this->transaction_id);
+        if ($transaction->state !== 'Unknow') {
+            return;
+        }
         $transactionInfo = $soapClient->getTransactionInformation(
             array(
                 'auth' => $ds->auth(),
