@@ -25,6 +25,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
+
+        $this->app->singleton('DataStructuresFactory', function () {
+            return new DataStructuresFactory();
+        });
+
         $this->app->singleton('SoapClient', function () {
             try {
                 $opts = array(
@@ -43,10 +48,6 @@ class AppServiceProvider extends ServiceProvider
             } catch (Exception $e) {
                 return null;
             }
-        });
-
-        $this->app->singleton('DataStructuresFactory', function () {
-            return new DataStructuresFactory();
         });
     }
 }

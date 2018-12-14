@@ -5,6 +5,16 @@
     <meta charset="utf-8">
 </head>
 <body>
+
+    @if (count($errors) > 0)
+        <p>Errores</p>
+        <ul>
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    @endif
+    
     <form method="post" action="/create-transaction">
         {{ csrf_field() }}
         <p>Datos de Comprador:</p>
@@ -49,10 +59,10 @@
         </select><br>
 
         <label for="phone">Teléfono Fijo*</label>
-        <input type="tel" name="person[phone]" id="phone" required>
+        <input type="number" name="person[phone]" id="phone" required>
 
         <label for="mobile">Teléfono Célular*</label>
-        <input type="tel" name="person[mobile]" id="mobile" required><br><br><br>
+        <input type="number" name="person[mobile]" id="mobile" required><br><br><br>
 
         <p>Datos de Transacción</p>
         

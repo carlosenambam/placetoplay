@@ -10,6 +10,8 @@ use Madewithlove\IlluminatePsrCacheBridge\Laravel\CacheItemPool;
 use Madewithlove\IlluminatePsrCacheBridge\Laravel\CacheItem;
 use DateTime;
 use DateInterval;
+use App\Transaction;
+use App\Jobs\VerifyTransactionJob;
 
 class PaymentController extends Controller
 {
@@ -47,9 +49,53 @@ class PaymentController extends Controller
             return 'Error';
         }
 
-        $pseTR = $soapClient->createTransaction($ds->createTransactionParams($request));
-        return view('pseresponde', array(
-            'pseTR' => $pseTR
+        $transaction = new Transaction();
+        $transaction->save();
+
+        $trResponse = $soapClient->createTransaction($ds->createTransactionParams($request, $transaction->id));
+        $dataResponse = $trResponse->createTransactionResult;
+
+        $transaction->return_code = $dataResponse->returnCode;
+        $transaction->bank_url = $dataResponse->bankURL;
+        $transaction->trazability_code = $dataResponse->trazabilityCode;
+        $transaction->transaction_cycle = $dataResponse->transactionCycle;
+        $transaction->transaction_id = $dataResponse->transactionID;
+        $transaction->session_id = $dataResponse->sessionID;
+        $transaction->bank_currency = $dataResponse->bankCurrency;
+        $transaction->bank_factor = $dataResponse->bankFactor;
+        $transaction->response_code = $dataResponse->responseCode;
+        $transaction->response_reason_code = $dataResponse->responseReasonCode;
+        $transaction->response_reason_text = $dataResponse->responseReasonText;
+        $transaction->state = 'Unknown';
+        $transaction->save();
+
+        if ($dataResponse->returnCode === 'SUCCESS') {
+            $verifyTransactionJob = new VerifyTransactionJob($transaction->id);
+            $verifyTransactionJob->delay(60*7);
+            $this->dispatch($verifyTransactionJob);
+            return redirect($dataResponse->bankURL);
+        } else {
+            return redirect('/')->withErrors(['error' => $dataResponse->responseReasonText]);
+        }
+    }
+
+    public function returnURL(Request $request, soapClient $soapClient, DataStructuresFactory $ds)
+    {
+        $transaction = Transaction::find($request->input('tranid'));
+        $transactionInfo = $soapClient->getTransactionInformation(
+            array(
+                'auth' => $ds->auth(),
+                'transactionID' => $transaction->transaction_id
+            )
+        );
+        $infoResults = $transactionInfo->getTransactionInformationResult;
+        $stateText = $infoResults->responseReasonText;
+        $transaction->state = $infoResults->transactionState;
+        $transaction->response_reason_text = $stateText;
+        $transaction->save();
+        
+        return view('pseresponse', array(
+            'tranState' => $stateText
         ));
     }
 }

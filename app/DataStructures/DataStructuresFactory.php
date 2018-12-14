@@ -40,7 +40,7 @@ class DataStructuresFactory
         return $stdObject;
     }
 
-    public function createTransactionParams(Request $request)
+    public function createTransactionParams(Request $request, $tranID)
     {
         
         if (!$request->input('transaction') || !$request->input('person')) {
@@ -48,13 +48,14 @@ class DataStructuresFactory
         }
 
         $paramObject = array();
-        $paramObject['transaction'] = $this->getStdObject($request->input('transaction');
-        $person = $this->getStdObject($request->input('person');
+        $paramObject['transaction'] = $this->getStdObject($request->input('transaction'));
+        $person = $this->getStdObject($request->input('person'));
         $paramObject['transaction']->payer = $person;
         $paramObject['transaction']->buyer = $person;
         $paramObject['transaction']->shipping = $person;
         $paramObject['transaction']->ipAddress = $request->ip();
         $paramObject['transaction']->userAgent = $request->userAgent();
+        $paramObject['transaction']->returnURL = url('/return-url?tranid='.$tranID);
         $paramObject['auth'] = $this->auth();
 
         return $paramObject;
